@@ -27,9 +27,54 @@ mnt mode=1777,nosuid,nodev        tmpfs  shm    /dev/shm
 } 2>/dev/null
 if command -v smdev >/dev/null; then
    echo "Guess i'll start smdev..."
-   smdev -s
-   smdev -df & mdev_pid=$!
+   echo "/sbin/smdev" > /proc/sys/kernel/hotplug
+	smdev -s
 else
-   echo no supported mapper installed - hope you like ln commands 
+   echo "no supported device node thing installed - hope you like ln commands"
 fi
 
+# this nice little bit from sabotage linux, thx guys :] 
+# make /dev/root symlink in case kernel root bootparam was set
+echo "YAY MOUNTPOINTS!!"
+test -e /dev/root || {
+	dv=$(sed -n 's,.*root=\(/dev/[sh]d[a-z][0-9]\).*,\1,p' < /proc/cmdline)
+	test -n "$dv" || dv=$(sed -n 's,.*root=\(/dev/mapper/[_A-Za-z0-9]*\).*,\1,p' < /proc/cmdline)
+	test -n "$dv" || dv=$(findfs $(sed -n 's,.*root=\(UUID=[-A-Za-z0-9]*\).*,\1,p' < /proc/cmdline) 2>/dev/null)
+	test -n "$dv" || dv=$(findfs $(sed -n 's,.*root=\(LABEL=[-_A-Za-z0-9]*\).*,\1,p' < /proc/cmdline) 2>/dev/null)
+	test -n "$dv" && test -e "$dv" && ln -s "$dv" /dev/root
+}
+
+
+$rw && mount -o remount,ro /
+fsck -A -T -C -p
+mkdir -p /dev/shm /dev/pts
+$rw && mount -o remount,rw /
+
+swapon -a
+
+mount -a # mount stuff from /etc/fstab
+
+if touch "$rwtest" 2>/dev/null; then
+  rm "$rwtest"
+  rw=true
+else
+  rw=false
+fi
+
+if ! $rw ; then
+	echo "non-writable fs detected, mounting tmpfs to /var and /tmp"
+	# tmpfs defaults to -o size=50%
+	mount -t tmpfs -o mode=1777 tmpfs /tmp
+	mount -t tmpfs -o size=1M,mode=751 tmpfs /var
+	mkdir -p /var/spool/cron/crontabs /var/service /var/log /var/empty
+	ln -sf /tmp /var/tmp
+	( cd /etc/service
+	for i in * ; do
+		# we copy the services instead of symlinking, so subdirs can be created
+		cp -rf /etc/service/$i /var/service/
+		mkdir -p /var/log/$i
+	done
+	)
+fi
+
+echo "Networking!"
