@@ -28,7 +28,6 @@ mnt mode=1777,nosuid,nodev        tmpfs  shm    /dev/shm
 } 2>/dev/null
 if command -v smdev >/dev/null; then
    echo "Guess i'll start smdev..."
-   echo "/sbin/smdev" > /proc/sys/kernel/hotplug
 	smdev -s
 else
    echo "no supported device node thing installed - hope you like ln commands"
@@ -38,13 +37,6 @@ fi
 # make /dev/root symlink in case kernel root bootparam was set
 echo "YAY MOUNTPOINTS!!"
 
-rw=true
-rwtest=/tmp/rwtest.tmp
-if touch "$rwtest" 2>/dev/null; then
-	rm "$rwtest"
-else
-	rw=false
-fi
 
 test -e /dev/root || {
 	dv=$(sed -n 's,.*root=\(/dev/[sh]d[a-z][0-9]\).*,\1,p' < /proc/cmdline)
@@ -54,6 +46,14 @@ test -e /dev/root || {
 	test -n "$dv" && test -e "$dv" && ln -s "$dv" /dev/root
 }
 
+
+rw=true
+rwtest=/tmp/rwtest.tmp
+if touch "$rwtest" 2>/dev/null; then
+	rm "$rwtest"
+else
+	rw=false
+fi
 
 $rw && mount -o remount,ro /
 fsck -A -T -C -p
@@ -67,3 +67,5 @@ mount -a # mount stuff from /etc/fstab
 echo "Networking!"
 hostname "$(cat /etc/hostname)"
 ifconfig lo up
+echo "Hope you like the login screen"
+getty /dev/tty1 vt100 &
