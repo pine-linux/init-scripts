@@ -24,3 +24,8 @@ mnt() {
     mount -o "$1" -t "$2" "$3" "$4"
 }
 
+respawn() {
+   while true; do
+      "$@"
+   done
+}

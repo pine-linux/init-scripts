@@ -68,4 +68,4 @@ echo "Networking!"
 hostname "$(cat /etc/hostname)"
 ifconfig lo up
 echo "Hope you like the login screen"
-getty /dev/tty1 vt100 &
+respawn getty /dev/tty1 vt100 &
